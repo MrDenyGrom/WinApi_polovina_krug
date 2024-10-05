@@ -13,7 +13,7 @@ protected:
     RECT rect;
 public:
     int width, height;
-    HPEN pBlack, pRed;
+    HPEN pBlack, pRed, pWhite;
     HBRUSH bGreen, bBlack;
 
     World() {
@@ -24,6 +24,7 @@ public:
         hdc = GetDC(hwnd);
         pBlack = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
         pRed = CreatePen(PS_SOLID, 1, RGB(255, 0, 0));
+        pWhite = CreatePen(PS_SOLID, 1, RGB(255, 255, 255));
         bGreen = CreateSolidBrush(RGB(0, 255, 0));
         bBlack = CreateSolidBrush(RGB(0, 0, 0));
     }
@@ -32,6 +33,7 @@ public:
         ReleaseDC(hwnd, hdc);
         DeleteObject(pBlack);
         DeleteObject(pRed);
+        DeleteObject(pWhite);
         DeleteObject(bGreen);
         DeleteObject(bBlack);
     }
@@ -69,8 +71,57 @@ public:
 class Graph : public Location {
 private:
     int radius;
+    int* trajectoryX;
+    int* trajectoryY;
+    int size;
+
 public:
-    Graph(int initx, int inity, int r) : Location(initx, inity), radius(r) {}
+    Graph(int initx, int inity, int r) : Location(initx, inity), radius(r), size(0) {
+        trajectoryX = nullptr;
+        trajectoryY = nullptr;
+    }
+
+    ~Graph() {
+        delete[] trajectoryX;
+        delete[] trajectoryY;
+    }
+
+    void addToTrajectory(int newX, int newY) {
+        int* newTrajectoryX = new int[size + 1];
+        int* newTrajectoryY = new int[size + 1];
+
+        for (int i = 0; i < size; i++) {
+            newTrajectoryX[i] = trajectoryX[i];
+            newTrajectoryY[i] = trajectoryY[i];
+        }
+
+        newTrajectoryX[size] = newX;
+        newTrajectoryY[size] = newY;
+
+        delete[] trajectoryX;
+        delete[] trajectoryY;
+
+        trajectoryX = newTrajectoryX;
+        trajectoryY = newTrajectoryY;
+
+        size++;
+    }
+
+    void drawTrajectory(World* wrd) {
+        HDC hdc = wrd->getHDC();
+        SelectObject(hdc, wrd->pWhite);
+        for (int i = 1; i < size; ++i) {
+            MoveToEx(hdc, trajectoryX[i - 1], trajectoryY[i - 1], NULL);
+            LineTo(hdc, trajectoryX[i], trajectoryY[i]);
+        }
+    }
+
+    void go(double angleStep, int centerX, int centerY) {
+        int newX = centerX + (int)(radius * cos(angleStep));
+        int newY = centerY - (int)(radius * sin(angleStep));
+        moveTo(newX, newY);
+        addToTrajectory(newX, newY);
+    }
 
     void show(World* wrd) {
         HDC hdc = wrd->getHDC();
@@ -78,18 +129,12 @@ public:
         SelectObject(hdc, wrd->pRed);
         Pie(hdc, x - radius, y, x + radius, y + radius * 2, x + radius, y + radius, x - radius, y + radius);
     }
-
-    void go(double angleStep, int centerX, int centerY) {
-        int newX = centerX + (radius * cos(angleStep));
-        int newY = centerY - (radius * sin(angleStep));
-        moveTo(newX, newY);
-    }
 };
 
 int main() {
     setlocale(LC_ALL, "Russian");
     int radius;
-    cout << "Ââåäèòå ðàäèóñ: ";
+    cout << "Ð’Ð²ÐµÐ´Ð¸Ñ‚Ðµ Ñ€Ð°Ð´Ð¸ÑƒÑ: ";
     cin >> radius;
 
     World* wrd = new World();
@@ -97,20 +142,21 @@ int main() {
 
     double angle = 0;
     do {
-
         wrd->clear();
         wrd->updateSize();
         int centerX = wrd->width / 2;
         int centerY = wrd->height / 2;
-        graph->go(angle, centerX, centerY);
 
+        graph->go(angle, centerX, centerY);
+        graph->drawTrajectory(wrd);
         graph->show(wrd);
 
         angle += 0.025;
         if (angle >= M_PI) {
             angle = 0;
         }
-        Sleep(50);
+
+        Sleep(5);
     } while (!_kbhit());
 
     delete graph;
