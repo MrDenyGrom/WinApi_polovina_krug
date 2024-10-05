@@ -110,7 +110,7 @@ public:
     void drawTrajectory(World* wrd) {
         HDC hdc = wrd->getHDC();
         SelectObject(hdc, wrd->pWhite);
-        for (int i = 1; i < size; ++i) {
+        for (int i = 1; i < size; i++) {
             MoveToEx(hdc, trajectoryX[i - 1], trajectoryY[i - 1], NULL);
             LineTo(hdc, trajectoryX[i], trajectoryY[i]);
         }
